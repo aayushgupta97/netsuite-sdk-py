@@ -30,8 +30,8 @@ class NetSuiteClient:
     """The Netsuite client class providing access to the Netsuite
     SOAP/WSDL web service"""
 
-    WSDL_URL_TEMPLATE = 'https://{account}.suitetalk.api.netsuite.com/wsdl/v2019_1_0/netsuite.wsdl'
-    DATACENTER_URL_TEMPLATE = 'https://{account}.suitetalk.api.netsuite.com/services/NetSuitePort_2019_1'
+    WSDL_URL_TEMPLATE = 'https://{account}.suitetalk.api.netsuite.com/wsdl/v2023_2_0/netsuite.wsdl'
+    DATACENTER_URL_TEMPLATE = 'https://{account}.suitetalk.api.netsuite.com/services/NetSuitePort_2023_2_0'
 
     _search_preferences = None
     _passport = None
@@ -45,7 +45,7 @@ class NetSuiteClient:
     _app_id = None
 
     def __init__(self, account=None, caching=True, caching_timeout=2592000, caching_path=None, search_body_fields_only=True,
-                 page_size: int = 100):
+                 page_size: int = 100, use_latest_wsdl=False):
         """
         Initialize the Zeep SOAP client, parse the xsd specifications
         of Netsuite and store the complex types as attributes of this
@@ -57,6 +57,7 @@ class NetSuiteClient:
                             If None, defaults to 30 days
         :param str caching_path: Sqlite base file path. Default to python library path.
         """
+        self.use_latest_wsdl = use_latest_wsdl
         self.logger = logging.getLogger(self.__class__.__name__)
         assert account, 'Invalid account'
         assert '-' not in account, 'Account cannot have hyphens, it is likely an underscore'
@@ -78,8 +79,12 @@ class NetSuiteClient:
         self._client = Client(self._wsdl_url, transport=transport)
 
         # default service points to wrong data center. need to create a new service proxy and replace the default one
-        self._service_proxy = self._client.create_service(
-            '{urn:platform_2019_1.webservices.netsuite.com}NetSuiteBinding', self._datacenter_url)
+        if self.use_latest_wsdl:
+            self._service_proxy = self._client.create_service(
+                '{urn:platform_2023_2.webservices.netsuite.com}NetSuiteBinding', self._datacenter_url)
+        else:
+            self._service_proxy = self._client.create_service(
+                '{urn:platform_2019_1.webservices.netsuite.com}NetSuiteBinding', self._datacenter_url)
 
         # Parse all complex types specified in :const:`~netsuitesdk.netsuite_types.COMPLEX_TYPES`
         # and store them as attributes of this instance. Same for simple types.
